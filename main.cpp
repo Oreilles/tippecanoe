@@ -1985,17 +1985,19 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 			}
 
 			bool changed = false;
-			while (maxzoom < 32 - full_detail && maxzoom < 33 - low_detail && cluster_distance > 0) {
-				unsigned long long zoom_mingap = ((1LL << (32 - maxzoom)) / 256 * cluster_distance) * ((1LL << (32 - maxzoom)) / 256 * cluster_distance);
-				if (avg > zoom_mingap) {
-					break;
-				}
+			if (cluster_distance > 0 && basezoom != -2) {
+				while (maxzoom < 32 - full_detail && maxzoom < 33 - low_detail && (basezoom == -1 || maxzoom < basezoom)) {
+					unsigned long long zoom_mingap = ((1LL << (32 - maxzoom)) / 256 * cluster_distance) * ((1LL << (32 - maxzoom)) / 256 * cluster_distance);
+					if (avg > zoom_mingap) {
+						break;
+					}
 
-				maxzoom++;
-				changed = true;
-			}
-			if (changed) {
-				printf("Choosing a maxzoom of -z%d to keep most features distinct with cluster distance %d\n", maxzoom, cluster_distance);
+					maxzoom++;
+					changed = true;
+				}
+				if (changed) {
+					printf("Choosing a maxzoom of -z%d to keep most features distinct with cluster distance %d\n", maxzoom, cluster_distance);
+				}
 			}
 		}
 
@@ -2123,6 +2125,11 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 			if (!quiet) {
 				fprintf(stderr, "Choosing a base zoom of -B%d to keep %lld features in tile %d/%u/%u.\n", basezoom, max[basezoom].count, basezoom, max[basezoom].x, max[basezoom].y);
 			}
+		}
+
+		if (guess_maxzoom && basezoom > maxzoom) {
+			printf("Choosing a maxzoom of -z%d to keep tile feature count below threshold\n", basezoom);
+			maxzoom = basezoom;
 		}
 
 		if (obasezoom < 0 && basezoom > maxzoom) {
@@ -2267,7 +2274,7 @@ int read_input(std::vector<source> &sources, char *fname, int maxzoom, int minzo
 
 	std::atomic<unsigned> midx(0);
 	std::atomic<unsigned> midy(0);
-	int written = traverse_zooms(fd, size, meta, stringpool, &midx, &midy, maxzoom, minzoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, meta_off, pool_off, initial_x, initial_y, simplification, layermaps, prefilter, postfilter, attribute_accum, filter);
+	int written = traverse_zooms(fd, size, meta, stringpool, &midx, &midy, maxzoom, minzoom, basezoom, outdb, outdir, buffer, fname, tmpdir, gamma, full_detail, low_detail, min_detail, meta_off, pool_off, initial_x, initial_y, simplification, layermaps, prefilter, postfilter, attribute_accum, filter);
 
 	if (maxzoom != written) {
 		if (written > minzoom) {
